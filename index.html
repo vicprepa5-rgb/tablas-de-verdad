@@ -37,16 +37,10 @@
         h1 { color: var(--primary); margin-bottom: 5px; font-size: 1.8rem; text-align: center; }
         .subtitle { color: #64748b; font-size: 0.95rem; margin-bottom: 25px; text-align: center; }
         
-        .setup-screen, .app-screen, .result-screen {
-            display: none;
-        }
-        .active-screen {
-            display: block;
-        }
+        .setup-screen, .app-screen, .result-screen { display: none; }
+        .active-screen { display: block; }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; }
         .form-group label { font-weight: bold; display: block; margin-bottom: 8px; }
         input[type="text"] {
             width: 100%;
@@ -63,10 +57,6 @@
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
-        }
-        .input-row {
-            display: flex;
-            gap: 10px;
         }
         .symbol-btns {
             display: flex;
@@ -136,9 +126,7 @@
         }
         .btn:hover { background-color: var(--primary-hover); }
 
-        #feedback-container {
-            margin-top: 15px;
-        }
+        #feedback-container { margin-top: 15px; }
         .feedback-item {
             padding: 10px;
             border-radius: 6px;
@@ -151,6 +139,7 @@
         .feedback-success { background: #dcfce7; color: #166534; border-left: 4px solid var(--success); }
         .feedback-error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--error); }
         .badge-attempts { background: var(--warning); color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.85rem; }
+        .sync-status { font-size: 0.85rem; color: #64748b; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -159,7 +148,7 @@
         <h1>Laboratorio de Lógica</h1>
         <p class="subtitle">Evaluación de Tablas de Verdad</p>
 
-        <!-- PANTALLA 1: REGISTRO DE ESTUDIANTE -->
+        <!-- PANTALLA 1: REGISTRO -->
         <div id="setup-screen" class="setup-screen active-screen">
             <div class="form-group">
                 <label for="student-name">Nombre Completo del Estudiante:</label>
@@ -181,7 +170,7 @@
             <button class="btn" onclick="startApp()">Comenzar Actividad</button>
         </div>
 
-        <!-- PANTALLA 2: JUEGO / EVALUACIÓN -->
+        <!-- PANTALLA 2: JUEGO -->
         <div id="app-screen" class="app-screen">
             <div class="info-bar">
                 <span id="display-name">Alumno: </span>
@@ -199,19 +188,24 @@
             <div id="feedback-container"></div>
         </div>
 
-        <!-- PANTALLA 3: RESULTADOS / CALIFICACIÓN -->
+        <!-- PANTALLA 3: RESULTADOS -->
         <div id="result-screen" class="result-screen" style="text-align: center;">
             <h2 id="res-title" style="font-size: 1.8rem; margin-bottom: 10px;">¡Actividad Finalizada!</h2>
             <p id="res-student" style="font-size: 1.1rem; color: #64748b; margin-bottom: 5px;"></p>
             <p style="font-size: 1rem; color: #64748b;">Calificación Obtenida:</p>
             <div id="res-score" style="font-size: 3.5rem; font-weight: bold; color: var(--primary); margin: 15px 0;">10 / 10</div>
-            <div id="res-msg" style="margin-bottom: 20px; font-weight: bold;"></div>
+            <div id="res-msg" style="margin-bottom: 15px; font-weight: bold;"></div>
+            <div id="sync-msg" class="sync-status">Guardando calificación en el sistema...</div>
+            <br>
             <button class="btn" onclick="location.reload()">Realizar otro ejercicio</button>
         </div>
 
     </div>
 
     <script>
+        // CONFIGURACIÓN: PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT
+        const WEB_APP_URL = "PEGAR_AQUÍ_TU_URL_DE_GOOGLE_APPS_SCRIPT";
+
         let studentName = "";
         let currentExpr = "";
         let attemptsLeft = 2;
@@ -239,11 +233,10 @@
 
             let testVal = evaluateExpression(currentExpr, true, true);
             if (testVal === null) {
-                alert("La expresión lógica contiene un formato no reconocido. Usa p, q, ~, ^, v, ->, <->");
+                alert("La expresión lógica contiene un formato no reconocido.");
                 return;
             }
 
-            // Configurar pantalla de juego
             document.getElementById('display-name').innerText = `Alumno: ${studentName}`;
             document.getElementById('display-expr').innerText = currentExpr;
             attemptsLeft = 2;
@@ -252,37 +245,18 @@
             
             buildTableHTML();
 
-            // Cambiar pantallas
             document.getElementById('setup-screen').classList.remove('active-screen');
             document.getElementById('app-screen').classList.add('active-screen');
         }
 
         function buildTableHTML() {
             let container = document.getElementById('table-container');
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>p</th>
-                            <th>q</th>
-                            <th>${currentExpr}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
+            let html = `<table><thead><tr><th>p</th><th>q</th><th>${currentExpr}</th></tr></thead><tbody>`;
             inputs.forEach((inp, idx) => {
                 let pVal = inp[0] ? 'V' : 'F';
                 let qVal = inp[1] ? 'V' : 'F';
-                html += `
-                    <tr>
-                        <td>${pVal}</td>
-                        <td>${qVal}</td>
-                        <td class="interactive-cell cell-f" id="cell-${idx}" onclick="toggleCell(${idx})">F</td>
-                    </tr>
-                `;
+                html += `<tr><td>${pVal}</td><td>${qVal}</td><td class="interactive-cell cell-f" id="cell-${idx}" onclick="toggleCell(${idx})">F</td></tr>`;
             });
-
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
@@ -349,11 +323,11 @@
 
                 if (userBool === expectedBool) {
                     item.classList.add("feedback-success");
-                    item.innerHTML = `✅ <b>Fila ${rowNum} (p=${pText}, q=${qText}):</b> ¡Correcto!`;
+                    item.innerHTML = `✅ <b>Fila ${rowNum}:</b> ¡Correcto!`;
                 } else {
                     item.classList.add("feedback-error");
                     let expectedText = expectedBool ? 'V' : 'F';
-                    item.innerHTML = `❌ <b>Fila ${rowNum} (p=${pText}, q=${qText}):</b> Incorrecto. Debería ser <b>${expectedText}</b>.`;
+                    item.innerHTML = `❌ <b>Fila ${rowNum}:</b> Incorrecto. Era <b>${expectedText}</b>.`;
                     allCorrect = false;
                 }
                 feedback.appendChild(item);
@@ -373,7 +347,7 @@
                     warn.style.background = "#fef3c7";
                     warn.style.color = "#92400e";
                     warn.style.borderLeft = "4px solid var(--warning)";
-                    warn.innerHTML = `⚠️ Tienes errores en tu tabla. Te queda <b>1 intento más</b> para corregirlos.`;
+                    warn.innerHTML = `⚠️ Tienes errores. Te queda <b>1 intento más</b>.`;
                     feedback.prepend(warn);
                 }
             }
@@ -387,15 +361,45 @@
             let scoreEl = document.getElementById('res-score');
             let msgEl = document.getElementById('res-msg');
 
+            let finalScore = success ? "10 / 10" : "5 / 10";
+            let statusText = success ? "Aprobado (Correcto)" : "No superado (Agotó intentos)";
+
+            scoreEl.innerText = finalScore;
             if (success) {
-                scoreEl.innerText = "10 / 10";
                 scoreEl.style.color = "var(--success)";
-                msgEl.innerText = "¡Excelente desempeño! Resolviste la tabla de verdad correctamente.";
+                msgEl.innerText = "¡Excelente desempeño!";
             } else {
-                scoreEl.innerText = "5 / 10";
                 scoreEl.style.color = "var(--error)";
-                msgEl.innerText = "Se agotaron tus intentos. Repasa las reglas de los operadores lógicos e inténtalo de nuevo.";
+                msgEl.innerText = "Se agotaron tus intentos.";
             }
+
+            // ENVIAR DATOS A GOOGLE SHEETS
+            sendDataToSheet(studentName, currentExpr, finalScore, statusText);
+        }
+
+        function sendDataToSheet(nombre, expresion, calificacion, estado) {
+            if (WEB_APP_URL.includes("PEGAR_AQUÍ")) {
+                document.getElementById('sync-msg').innerText = "⚠️ Nota: Falta configurar la URL de Google Sheets en el código.";
+                return;
+            }
+
+            let payload = {
+                nombre: nombre,
+                expresion: expresion,
+                calificacion: calificacion,
+                estado: estado
+            };
+
+            fetch(WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors", // Evita problemas de bloqueo de navegador
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                document.getElementById('sync-msg').innerText = "✅ ¡Calificación guardada y reportada con éxito en el sistema!";
+            }).catch(err => {
+                document.getElementById('sync-msg').innerText = "❌ Error al sincronizar el resultado.";
+            });
         }
     </script>
 </body>
