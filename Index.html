@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio de Tablas de Verdad</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --success: #16a34a;
+            --error: #dc2626;
+            --warning: #d97706;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        h1 { color: var(--primary); margin-bottom: 5px; font-size: 1.8rem; text-align: center; }
+        .subtitle { color: #64748b; font-size: 0.95rem; margin-bottom: 25px; text-align: center; }
+        
+        .builder-box {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .builder-box label { font-weight: bold; display: block; margin-bottom: 8px; }
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: monospace;
+        }
+        .symbol-btns {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .sym-btn {
+            background: #e2e8f0;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .sym-btn:hover { background: #cbd5e1; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            text-align: center;
+        }
+        th { background-color: #f1f5f9; font-weight: 600; }
+        
+        .interactive-cell {
+            background-color: #f8fafc;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .interactive-cell:hover { background-color: #e2e8f0; }
+        .cell-v { color: var(--success); }
+        .cell-f { color: var(--error); }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+
+        #feedback-container {
+            margin-top: 15px;
+        }
+        .feedback-item {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feedback-success { background: #dcfce7; color: #166534; border-left: 4px solid var(--success); }
+        .feedback-error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--error); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Laboratorio de Tablas de Verdad</h1>
+        <p class="subtitle">Escribe una expresión y evalúa tus resultados fila por fila</p>
+
+        <div class="builder-box">
+            <label for="expr-input">Proposición Compuesta:</label>
+            <div class="input-row">
+                <input type="text" id="expr-input" value="(p v q) -> ~p" placeholder="Ej: (p ^ q) -> ~p">
+                <button class="btn" style="width: auto;" onclick="initTable()">Generar Tabla</button>
+            </div>
+            <div class="symbol-btns">
+                <span style="font-size: 0.85rem; color: #64748b; align-self: center; margin-right: 5px;">Atajos:</span>
+                <button class="sym-btn" onclick="insertSymbol('p')">p</button>
+                <button class="sym-btn" onclick="insertSymbol('q')">q</button>
+                <button class="sym-btn" onclick="insertSymbol('~')">~ (Negación)</button>
+                <button class="sym-btn" onclick="insertSymbol('^')">^ (Y)</button>
+                <button class="sym-btn" onclick="insertSymbol('v')">v (O)</button>
+                <button class="sym-btn" onclick="insertSymbol('->')">-> (Condicional)</button>
+                <button class="sym-btn" onclick="insertSymbol('<->')">&lt;-&gt; (Bicondicional)</button>
+            </div>
+        </div>
+
+        <div id="table-container"></div>
+
+        <button class="btn" id="check-btn" onclick="checkTable()" style="display:none;">Comprobar Fila por Fila</button>
+        
+        <div id="feedback-container"></div>
+    </div>
+
+    <script>
+        const inputs = [
+            [true, true],
+            [true, false],
+            [false, true],
+            [false, false]
+        ];
+        let userAnswers = [false, false, false, false];
+
+        function insertSymbol(sym) {
+            let input = document.getElementById('expr-input');
+            let start = input.selectionStart;
+            let end = input.selectionEnd;
+            let val = input.value;
+            input.value = val.substring(0, start) + sym + val.substring(end);
+            input.focus();
+            input.selectionStart = input.selectionEnd = start + sym.length;
+        }
+
+        // Evaluador seguro de expresiones lógicas para 2 variables (p, q)
+        function evaluateExpression(expr, p, q) {
+            try {
+                let cleanExpr = expr
+                    .replace(/<->/g, '===')
+                    .replace(/->/g, '<=') // En JS, falso <= verdadero da true (equivalente a implicación material p -> q equivale a !p || q)
+                    .replace(/\^/g, '&&')
+                    .replace(/v/g, '||')
+                    .replace(/~/g, '!')
+                    .replace(/\bp\b/g, p)
+                    .replace(/\bq\b/g, q);
+
+                // Reemplazo seguro adaptando la implicación lógica material de JS si fuera necesario, 
+                // pero usando equivalencia matemática: p -> q es equivalente a !p || q
+                let logicExpr = expr
+                    .replace(/<->/g, '===')
+                    .replace(/->/g, '=== false || ') // p -> q == (!p || q)
+                    .replace(/\^/g, '&&')
+                    .replace(/v/g, '||')
+                    .replace(/~/g, '!');
+
+                // Función personalizada para evaluar de forma segura
+                let evaluator = new Function('p', 'q', `
+                    let _p = !!p;
+                    let _q = !!q;
+                    // Reemplazos estructurados internos
+                    return Boolean(${exprToJS(expr, '_p', '_q')});
+                `);
+                return evaluator(p, q);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function exprToJS(expr, pVar, qVar) {
+            let js = expr.trim();
+            // Reemplazos de operadores a JavaScript puro
+            // ~ -> !
+            // ^ -> &&
+            // v -> ||
+            // -> -> (!p || q)
+            // <-> -> (p === q)
+            
+            // Reemplazo de bicondicional
+            js = js.replace(/<->/g, '===');
+            // Reemplazo de implicación (A -> B se convierte en (!A || B))
+            // Para simplificar la sintaxis del usuario permitiremos evaluarlo como implicación lógica exacta:
+            // Vamos a normalizar reemplazando tokens paso a paso
+            js = js.replace(/~/g, '!');
+            js = js.replace(/\^/g, '&&');
+            js = js.replace(/v/g, '||');
+            js = js.replace(/\bp\b/g, pVar);
+            js = js.replace(/\bq\b/g, qVar);
+
+            // Manejo especial básico para condicionales tipo (A -> B)
+            if (expr.includes('->')) {
+                let parts = expr.split('->');
+                if (parts.length === 2) {
+                    let left = exprToJS(parts[0], pVar, qVar);
+                    let right = exprToJS(parts[1], pVar, qVar);
+                    return `(!(${left}) || (${right}))`;
+                }
+            }
+
+            return js;
+        }
+
+        function initTable() {
+            let expr = document.getElementById('expr-input').value;
+            let container = document.getElementById('table-container');
+            let feedback = document.getElementById('feedback-container');
+            feedback.innerHTML = "";
+
+            // Validar si la expresión compila bien
+            let testVal = evaluateExpression(expr, true, true);
+            if (testVal === null) {
+                alert("La expresión contiene un formato no reconocido. Usa p, q, ~, ^, v, ->, <->");
+                return;
+            }
+
+            userAnswers = [false, false, false, false];
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>p</th>
+                            <th>q</th>
+                            <th>${expr}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            inputs.forEach((inp, idx) => {
+                let pVal = inp[0] ? 'V' : 'F';
+                let qVal = inp[1] ? 'V' : 'F';
+                html += `
+                    <tr>
+                        <td>${pVal}</td>
+                        <td>${qVal}</td>
+                        <td class="interactive-cell cell-f" id="cell-${idx}" onclick="toggleCell(${idx})">F</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+            document.getElementById('check-btn').style.display = "block";
+        }
+
+        function toggleCell(idx) {
+            userAnswers[idx] = !userAnswers[idx];
+            let cell = document.getElementById(`cell-${idx}`);
+            if (userAnswers[idx]) {
+                cell.innerText = "V";
+                cell.className = "interactive-cell cell-v";
+            } else {
+                cell.innerText = "F";
+                cell.className = "interactive-cell cell-f";
+            }
+        }
+
+        function checkTable() {
+            let expr = document.getElementById('expr-input').value;
+            let feedback = document.getElementById('feedback-container');
+            feedback.innerHTML = "";
+
+            let allCorrect = true;
+
+            inputs.forEach((inp, idx) => {
+                let expectedBool = evaluateExpression(expr, inp[0], inp[1]);
+                let userBool = userAnswers[idx];
+                let rowNum = idx + 1;
+                let pText = inp[0] ? 'V' : 'F';
+                let qText = inp[1] ? 'V' : 'F';
+
+                let item = document.createElement('div');
+                item.className = "feedback-item";
+
+                if (userBool === expectedBool) {
+                    item.classList.add("feedback-success");
+                    item.innerHTML = `✅ <b>Fila ${rowNum} (p=${pText}, q=${qText}):</b> ¡Correcto!`;
+                } else {
+                    item.classList.add("feedback-error");
+                    let expectedText = expectedBool ? 'V' : 'F';
+                    item.innerHTML = `❌ <b>Fila ${rowNum} (p=${pText}, q=${qText}):</b> Incorrecto. El resultado esperado era <b>${expectedText}</b>. Revisa bien las reglas del operador.`;
+                    allCorrect = false;
+                }
+                feedback.appendChild(item);
+            });
+
+            if (allCorrect) {
+                let successBanner = document.createElement('div');
+                successBanner.className = "feedback-item feedback-success";
+                successBanner.style.fontWeight = "bold";
+                successBanner.style.justifyContent = "center";
+                successBanner.style.fontSize = "1.05rem";
+                successBanner.innerHTML = "🎉 ¡Felicidades! Toda la tabla de verdad está perfecta.";
+                feedback.prepend(successBanner);
+            }
+        }
+
+        // Cargar tabla inicial al abrir la página
+        window.onload = initTable;
+    </script>
+</body>
+</html>
