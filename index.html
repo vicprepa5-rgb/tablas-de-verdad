@@ -195,7 +195,10 @@
             <p style="font-size: 1rem; color: #64748b;">Calificación Obtenida:</p>
             <div id="res-score" style="font-size: 3.5rem; font-weight: bold; color: var(--primary); margin: 15px 0;">10 / 10</div>
             <div id="res-msg" style="margin-bottom: 15px; font-weight: bold;"></div>
-            <div id="sync-msg" class="sync-status">Guardando calificación en el sistema...</div>
+            
+            <div id="final-review-container" style="text-align: left; margin-top: 20px; max-height: 250px; overflow-y: auto; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #cbd5e1;"></div>
+
+            <div id="sync-msg" class="sync-status" style="margin-top: 15px;">Guardando calificación en el sistema...</div>
             <br>
             <button class="btn" onclick="location.reload()">Realizar otro ejercicio</button>
         </div>
@@ -203,7 +206,7 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN: PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT
+        // CONFIGURACIÓN: ASEGÚRATE DE MANTENER TU URL DE GOOGLE APPS SCRIPT AQUÍ
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxAId39E5d6_tBCWpg1mrNqk7XIp9DRVNCWHA6ZGXPlQkZCSN7rspoU0My-dEuB4Z86mg/exec";
 
         let studentName = "";
@@ -309,31 +312,17 @@
         function checkTable() {
             let feedback = document.getElementById('feedback-container');
             feedback.innerHTML = "";
-            let allCorrect = true;
+            let errorCount = 0;
 
             inputs.forEach((inp, idx) => {
                 let expectedBool = evaluateExpression(currentExpr, inp[0], inp[1]);
                 let userBool = userAnswers[idx];
-                let rowNum = idx + 1;
-                let pText = inp[0] ? 'V' : 'F';
-                let qText = inp[1] ? 'V' : 'F';
-
-                let item = document.createElement('div');
-                item.className = "feedback-item";
-
-                if (userBool === expectedBool) {
-                    item.classList.add("feedback-success");
-                    item.innerHTML = `✅ <b>Fila ${rowNum}:</b> ¡Correcto!`;
-                } else {
-                    item.classList.add("feedback-error");
-                    let expectedText = expectedBool ? 'V' : 'F';
-                    item.innerHTML = `❌ <b>Fila ${rowNum}:</b> Incorrecto. Era <b>${expectedText}</b>.`;
-                    allCorrect = false;
+                if (userBool !== expectedBool) {
+                    errorCount++;
                 }
-                feedback.appendChild(item);
             });
 
-            if (allCorrect) {
+            if (errorCount === 0) {
                 finishGame(true);
             } else {
                 attemptsLeft--;
@@ -347,7 +336,7 @@
                     warn.style.background = "#fef3c7";
                     warn.style.color = "#92400e";
                     warn.style.borderLeft = "4px solid var(--warning)";
-                    warn.innerHTML = `⚠️ Tienes errores. Te queda <b>1 intento más</b>.`;
+                    warn.innerHTML = `⚠️ Tienes <b>${errorCount} error(es)</b> en tu tabla. Analiza tus respuestas, te queda <b>1 intento más</b>.`;
                     feedback.prepend(warn);
                 }
             }
@@ -360,6 +349,7 @@
             document.getElementById('res-student').innerText = `Estudiante: ${studentName}`;
             let scoreEl = document.getElementById('res-score');
             let msgEl = document.getElementById('res-msg');
+            let reviewContainer = document.getElementById('final-review-container');
 
             let finalScore = success ? "10 / 10" : "5 / 10";
             let statusText = success ? "Aprobado (Correcto)" : "No superado (Agotó intentos)";
@@ -367,11 +357,30 @@
             scoreEl.innerText = finalScore;
             if (success) {
                 scoreEl.style.color = "var(--success)";
-                msgEl.innerText = "¡Excelente desempeño!";
+                msgEl.innerText = "¡Excelente desempeño! Resolviste la tabla correctamente.";
             } else {
                 scoreEl.style.color = "var(--error)";
-                msgEl.innerText = "Se agotaron tus intentos.";
+                msgEl.innerText = "Se agotaron tus intentos. Aquí tienes el desglose de corrección:";
             }
+
+            // Generar desglose detallado para la pantalla final
+            let reviewHTML = "<h4 style='margin:0 0 10px 0;'>Desglose detallado:</h4>";
+            inputs.forEach((inp, idx) => {
+                let expectedBool = evaluateExpression(currentExpr, inp[0], inp[1]);
+                let userBool = userAnswers[idx];
+                let rowNum = idx + 1;
+                let pText = inp[0] ? 'V' : 'F';
+                let qText = inp[1] ? 'V' : 'F';
+                let expectedText = expectedBool ? 'V' : 'F';
+                let userText = userBool ? 'V' : 'F';
+
+                if (userBool === expectedBool) {
+                    reviewHTML += `<div style="color: #166534; font-size: 0.85rem; margin-bottom: 4px;">✅ Fila ${rowNum} (p=${pText}, q=${qText}): Tu respuesta (${userText}) fue correcta.</div>`;
+                } else {
+                    reviewHTML += `<div style="color: #991b1b; font-size: 0.85rem; margin-bottom: 4px;">❌ Fila ${rowNum} (p=${pText}, q=${qText}): Pusiste <b>${userText}</b> y lo correcto era <b>${expectedText}</b>.</div>`;
+                }
+            });
+            reviewContainer.innerHTML = reviewHTML;
 
             // ENVIAR DATOS A GOOGLE SHEETS
             sendDataToSheet(studentName, currentExpr, finalScore, statusText);
@@ -392,7 +401,7 @@
 
             fetch(WEB_APP_URL, {
                 method: "POST",
-                mode: "no-cors", // Evita problemas de bloqueo de navegador
+                mode: "no-cors",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             }).then(() => {
